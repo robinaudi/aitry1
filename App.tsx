@@ -10,7 +10,7 @@ import { ImpactMetrics, SkillsCloud, CertificationGrid } from './components/Diag
 import { Dashboard } from './components/Dashboard';
 import { initialContent } from './content';
 import { Theme, Language, ExperienceItem, LocalizedContent } from './types';
-import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2 } from 'lucide-react';
+import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2, Lock } from 'lucide-react';
 
 // Firebase Imports
 import { auth, googleProvider, db } from './firebase';
@@ -163,9 +163,9 @@ const App: React.FC = () => {
     try {
         await signInWithPopup(auth, googleProvider);
         setIsEditorOpen(true);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Login failed", error);
-        alert("Login failed");
+        alert("Login failed: " + error.message);
     }
   };
 
@@ -273,14 +273,15 @@ const App: React.FC = () => {
                     </div>
                 </div>
 
-                 {/* Admin Login */}
+                 {/* Admin Login - Explicit Text */}
                  {user ? (
-                     <button onClick={() => setIsEditorOpen(true)} className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded-full text-xs hover:bg-green-700">
-                        <Settings size={12} /> Edit
+                     <button onClick={() => setIsEditorOpen(true)} className="flex items-center gap-2 px-3 py-1 bg-green-600 text-white rounded-full text-xs font-bold hover:bg-green-700 shadow-sm">
+                        <Settings size={12} /> EDITOR
                      </button>
                  ) : (
-                     <button onClick={handleLogin} className={`flex items-center gap-1 hover:${accentColor}`} title={content.ui.nav.admin}>
-                        <User size={16} />
+                     <button onClick={handleLogin} className={`flex items-center gap-1 px-3 py-1 rounded-full border border-transparent hover:border-gray-300 hover:bg-gray-100 transition-all ${isProfessional ? 'text-[#0a66c2]' : textColor}`} title={content.ui.nav.admin}>
+                        <Lock size={14} />
+                        <span className="text-xs font-bold uppercase">{content.ui.nav.admin}</span>
                      </button>
                  )}
             </div>
@@ -310,6 +311,18 @@ const App: React.FC = () => {
                             ))}
                         </div>
                     </div>
+                     {/* Mobile Admin Login */}
+                     <div className="px-4 mt-2">
+                         {user ? (
+                             <button onClick={() => { setIsEditorOpen(true); setMenuOpen(false); }} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-bold">
+                                <Settings size={14} /> Open Editor
+                             </button>
+                         ) : (
+                             <button onClick={handleLogin} className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-bold hover:bg-gray-200">
+                                <Lock size={14} /> Admin Login
+                             </button>
+                         )}
+                     </div>
                 </div>
             </div>
         )}
@@ -553,9 +566,15 @@ const App: React.FC = () => {
                 <div className={`${isDark ? 'text-white' : 'text-stone-800'} font-serif font-bold text-xl mb-1`}>ROBIN HSU</div>
                 <p className="text-xs text-stone-500 uppercase tracking-widest">Senior Technology Executive</p>
             </div>
-            <div className="text-xs text-stone-500">
-                © {new Date().getFullYear()} Robin Hsu. {content.ui.footer.rights}
-            </div>
+             {/* Admin Link in Footer for Backup Access */}
+             <div className="flex gap-4 items-center">
+                 <button onClick={user ? () => setIsEditorOpen(true) : handleLogin} className="text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1">
+                     <Lock size={10} /> {user ? 'CMS Editor' : 'Admin'}
+                 </button>
+                 <div className="text-xs text-stone-500">
+                     © {new Date().getFullYear()} Robin Hsu. {content.ui.footer.rights}
+                 </div>
+             </div>
         </div>
       </footer>
     </div>
