@@ -119,15 +119,31 @@ const App: React.FC = () => {
         try {
             const docRef = doc(db, "portfolio", "main_content");
             
-            // FORCE UPDATE: We are prioritizing code updates over database persistence 
-            // to ensure the latest changes to content.ts are reflected immediately.
-            // In a production CMS scenario, you would likely remove this or use versioning.
-            await setDoc(docRef, initialContent);
-            setContentMap(initialContent);
+            // Try to fetch content from Cloud
+            const docSnap = await getDoc(docRef);
+            
+            if (docSnap.exists()) {
+                const data = docSnap.data() as LocalizedContent;
+                // Simple integrity check
+                if (data && data.en && data.zh) {
+                    setContentMap(data);
+                } else {
+                    console.warn("Cloud content incomplete, using local default.");
+                    setContentMap(initialContent);
+                }
+            } else {
+                console.log("No cloud content found, using local default.");
+                setContentMap(initialContent);
+            }
 
-        } catch (error) {
-            console.error("Error fetching content:", error);
-            // Fallback to initialContent
+        } catch (error: any) {
+            // Permission Denied is expected if public access is not configured in Firestore Rules.
+            // In this case, we silently failover to local content without annoying the user.
+            if (error.code === 'permission-denied') {
+                console.log("Using local content (Cloud access restricted).");
+            } else {
+                console.warn("Error fetching content, using fallback:", error);
+            }
             setContentMap(initialContent);
         } finally {
             setLoading(false);
@@ -152,10 +168,12 @@ const App: React.FC = () => {
             const docRef = doc(db, "portfolio", "main_content");
             await setDoc(docRef, newContentMap, { merge: true });
             alert("Saved successfully to cloud!");
-        } catch (e) {
+        } catch (e: any) {
             console.error("Error saving document: ", e);
-            alert("Error saving: Check console permissions");
+            alert("Error saving: " + e.message);
         }
+    } else {
+        alert("You must be logged in to save changes to the cloud.");
     }
   };
 
