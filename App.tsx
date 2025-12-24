@@ -290,6 +290,29 @@ const App: React.FC = () => {
             {menuOpen ? <X /> : <Menu />}
           </button>
         </div>
+
+        {/* Mobile Menu Overlay */}
+        {menuOpen && (
+            <div className={`md:hidden absolute top-full left-0 right-0 p-4 shadow-lg border-t transition-all duration-300 ${isDark ? 'bg-[#0f172a] border-white/10' : (isProfessional ? 'bg-white border-gray-100' : 'bg-[#F9F8F4] border-stone-200')}`}>
+                <div className="flex flex-col gap-4">
+                    <a href="#about" onClick={scrollToSection('about')} className={`py-2 px-4 rounded hover:bg-black/5 ${textColor}`}>{content.ui.nav.about}</a>
+                    <a href="#experience" onClick={scrollToSection('experience')} className={`py-2 px-4 rounded hover:bg-black/5 ${textColor}`}>{content.ui.nav.experience}</a>
+                    <a href="#skills" onClick={scrollToSection('skills')} className={`py-2 px-4 rounded hover:bg-black/5 ${textColor}`}>{content.ui.nav.expertise}</a>
+                    <div className="h-px bg-stone-200 my-2"></div>
+                    {/* Mobile Controls */}
+                    <div className="flex items-center justify-between px-4">
+                        <button onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} className={`flex items-center gap-2 ${textColor}`}>
+                            <Globe size={18} /> {lang === 'en' ? '中文' : 'English'}
+                        </button>
+                        <div className="flex gap-2">
+                            {(['light', 'dark', 'professional', 'hipster'] as Theme[]).map(t => (
+                                <button key={t} onClick={() => setTheme(t)} className={`w-6 h-6 rounded-full border ${theme === t ? 'border-nobel-gold ring-1 ring-nobel-gold' : 'border-gray-300'}`} style={{ backgroundColor: t === 'dark' ? '#1a1a1a' : (t === 'professional' ? '#f3f2ef' : '#F9F8F4') }}></button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
       </nav>
 
       {/* Hero Section */}
