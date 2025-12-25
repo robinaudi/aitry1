@@ -27,6 +27,7 @@ export interface MetricItem {
 export interface SkillCategory {
   name: string;
   skills: string[];
+  icon?: string; // Added icon property
 }
 
 export interface EducationItem {

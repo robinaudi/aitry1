@@ -6,8 +6,55 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Award, Users, Server, Database, Cloud } from 'lucide-react';
+import { 
+    TrendingUp, Award, Users, Server, Database, Cloud, 
+    BrainCircuit, Cpu, Bot, Sparkles, Zap, Code, 
+    Terminal, Layers, Box, Globe, Shield, Target, 
+    Briefcase, Layout, Smartphone, Wrench, Settings 
+} from 'lucide-react';
 import { MetricItem, SkillCategory, UIStrings } from '../types';
+
+// Export the Icon Map so Dashboard can use it for the picker
+export const ICON_MAP: Record<string, React.ReactNode> = {
+    // AI / Tech
+    "BrainCircuit": <BrainCircuit size={16} />,
+    "Bot": <Bot size={16} />,
+    "Sparkles": <Sparkles size={16} />,
+    "Cpu": <Cpu size={16} />,
+    "Zap": <Zap size={16} />,
+    
+    // Leadership / Management
+    "Users": <Users size={16} />,
+    "Target": <Target size={16} />,
+    "Briefcase": <Briefcase size={16} />,
+    "Award": <Award size={16} />,
+    
+    // Cloud / Data
+    "Cloud": <Cloud size={16} />,
+    "Database": <Database size={16} />,
+    "Server": <Server size={16} />,
+    "Globe": <Globe size={16} />,
+    "Shield": <Shield size={16} />,
+    
+    // Dev
+    "Code": <Code size={16} />,
+    "Terminal": <Terminal size={16} />,
+    "Smartphone": <Smartphone size={16} />,
+    "Layout": <Layout size={16} />,
+    "Layers": <Layers size={16} />,
+    "Box": <Box size={16} />,
+    "Wrench": <Wrench size={16} />,
+    "Settings": <Settings size={16} />,
+    "TrendingUp": <TrendingUp size={16} />
+};
+
+export const getIcon = (iconName?: string) => {
+    if (iconName && ICON_MAP[iconName]) {
+        return ICON_MAP[iconName];
+    }
+    // Fallback if no icon is specified
+    return <Database size={16} />;
+};
 
 // --- IMPACT METRICS DIAGRAM ---
 export const ImpactMetrics: React.FC<{ metrics: MetricItem[], theme: string, ui: UIStrings }> = ({ metrics, theme, ui }) => {
@@ -72,13 +119,6 @@ export const ImpactMetrics: React.FC<{ metrics: MetricItem[], theme: string, ui:
 
 // --- SKILLS CLOUD ---
 export const SkillsCloud: React.FC<{theme: string, skills: SkillCategory[], ui: UIStrings}> = ({theme, skills, ui}) => {
-  const getIcon = (name: string) => {
-      if (name.includes("Leader") || name.includes("領導")) return <Users size={16} />;
-      if (name.includes("Cloud") || name.includes("雲端")) return <Cloud size={16} />;
-      if (name.includes("Development") || name.includes("軟體")) return <Server size={16} />;
-      return <Database size={16} />;
-  }
-
   const [activeCategory, setActiveCategory] = useState(0);
   const isDark = theme === 'dark';
   const isProfessional = theme === 'professional';
@@ -123,7 +163,7 @@ export const SkillsCloud: React.FC<{theme: string, skills: SkillCategory[], ui: 
               activeCategory === idx ? activeBtnClass : inactiveBtnClass
             }`}
           >
-            {getIcon(cat.name)}
+            {getIcon(cat.icon)}
             {cat.name}
           </button>
         ))}

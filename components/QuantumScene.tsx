@@ -69,10 +69,14 @@ const ConnectingNode = ({ position, color }: { position: [number, number, number
 }
 
 // Default Hero Scene
-export const HeroScene: React.FC = () => {
+export const HeroScene: React.FC = React.memo(() => {
   return (
     <div className="absolute inset-0 z-0 opacity-40 pointer-events-none">
-      <Canvas camera={{ position: [0, 0, 5], fov: 60 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 5], fov: 60 }} 
+        gl={{ powerPreference: "default", preserveDrawingBuffer: false }}
+        dpr={[1, 2]} // Limit pixel ratio for performance
+      >
         {/* @ts-ignore */}
         <ambientLight intensity={0.5} />
         <ParticleField />
@@ -80,13 +84,17 @@ export const HeroScene: React.FC = () => {
       </Canvas>
     </div>
   );
-};
+});
 
 // Abstract Tech Scene for Certifications
-export const AbstractTechScene: React.FC = () => {
+export const AbstractTechScene: React.FC = React.memo(() => {
   return (
     <div className="w-full h-full absolute inset-0">
-      <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
+      <Canvas 
+        camera={{ position: [0, 0, 5], fov: 45 }} 
+        gl={{ powerPreference: "default", preserveDrawingBuffer: false }}
+        dpr={[1, 2]}
+      >
         {/* @ts-ignore */}
         <ambientLight intensity={0.5} />
         <Float speed={2} rotationIntensity={0.5} floatIntensity={0.5}>
@@ -98,4 +106,4 @@ export const AbstractTechScene: React.FC = () => {
       </Canvas>
     </div>
   );
-}
+});

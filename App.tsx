@@ -166,11 +166,18 @@ const App: React.FC = () => {
     if (user) {
         try {
             const docRef = doc(db, "portfolio", "main_content");
-            await setDoc(docRef, newContentMap, { merge: true });
+            // Safety check: ensure object is clean JSON before sending to Firestore
+            // This catches circular structure errors early and ensures only data is sent.
+            const cleanData = JSON.parse(JSON.stringify(newContentMap));
+            await setDoc(docRef, cleanData, { merge: true });
             alert("Saved successfully to cloud!");
         } catch (e: any) {
             console.error("Error saving document: ", e);
-            alert("Error saving: " + e.message);
+            if (e.message.includes("circular structure")) {
+                 alert("Error: Data contains circular references and cannot be saved.");
+            } else {
+                 alert("Error saving: " + e.message);
+            }
         }
     } else {
         alert("You must be logged in to save changes to the cloud.");
@@ -183,7 +190,11 @@ const App: React.FC = () => {
         setIsEditorOpen(true);
     } catch (error: any) {
         console.error("Login failed", error);
-        alert("Login failed: " + error.message);
+        if (error.code === 'auth/unauthorized-domain') {
+            alert(`Login failed: Domain not authorized.\n\nPlease go to Firebase Console > Authentication > Settings > Authorized Domains.\n\nAdd this domain: ${window.location.hostname}`);
+        } else {
+            alert("Login failed: " + error.message);
+        }
     }
   };
 
@@ -468,12 +479,13 @@ const App: React.FC = () => {
 
         {/* Certifications & Education */}
         <section className={`py-24 overflow-hidden relative ${isDark ? 'bg-stone-900' : (isProfessional ? 'bg-[#f3f2ef]' : 'bg-[#e7e5e4]')}`}>
-            {/* Show Abstract Scene only in Dark/Hipster themes, keep Professional clean */}
-            {!isProfessional && (
-                 <div className="absolute top-0 right-0 w-1/2 h-full opacity-30">
-                     <AbstractTechScene />
-                </div>
-            )}
+            {/* 
+              Fix: Do NOT conditionally unmount AbstractTechScene.
+              Instead, toggle opacity/pointer-events to keep WebGL context alive.
+            */}
+             <div className={`absolute top-0 right-0 w-1/2 h-full transition-opacity duration-700 ${!isProfessional ? 'opacity-30' : 'opacity-0 pointer-events-none'}`}>
+                 <AbstractTechScene />
+            </div>
 
             <div className="container mx-auto px-6 relative z-10">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">

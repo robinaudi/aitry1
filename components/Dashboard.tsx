@@ -5,8 +5,9 @@
 */
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, LogOut, Plus, Trash2, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import { X, Save, LogOut, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Check } from 'lucide-react';
 import { ContentData, ExperienceItem, MetricItem, SkillCategory, EducationItem, TeachingItem } from '../types';
+import { ICON_MAP } from './Diagrams';
 
 interface DashboardProps {
     isOpen: boolean;
@@ -40,6 +41,82 @@ const TextArea = ({ value, onChange }: { value: string, onChange: (val: string) 
         className="w-full p-2 text-sm border border-gray-200 rounded bg-white focus:border-blue-500 outline-none min-h-[80px]"
     />
 );
+
+// --- Icon Picker with Suggestion Logic ---
+const IconPicker = ({ currentIcon, titleContext, onSelect }: { currentIcon: string, titleContext: string, onSelect: (icon: string) => void }) => {
+    const [showAll, setShowAll] = useState(false);
+    
+    // Logic to suggest icons based on title
+    const getSuggestions = (text: string): string[] => {
+        const lower = text.toLowerCase();
+        const suggestions: string[] = [];
+        
+        const keywords: Record<string, string[]> = {
+            "ai": ["BrainCircuit", "Bot", "Sparkles", "Cpu", "Zap"],
+            "intelligence": ["BrainCircuit", "Bot", "Sparkles"],
+            "bot": ["Bot", "BrainCircuit"],
+            "leader": ["Users", "Briefcase", "Target", "Award"],
+            "manag": ["Users", "Briefcase", "TrendingUp", "Layout"],
+            "team": ["Users", "Briefcase"],
+            "cloud": ["Cloud", "Server", "Database", "Globe"],
+            "data": ["Database", "Server", "TrendingUp", "Layers"],
+            "dev": ["Code", "Terminal", "Smartphone", "Box"],
+            "soft": ["Code", "Layout", "AppWindow"],
+            "web": ["Globe", "Layout", "Code"],
+            "mobile": ["Smartphone", "Layout"],
+            "security": ["Shield", "Lock"],
+            "ops": ["Settings", "Wrench", "Server"]
+        };
+
+        Object.keys(keywords).forEach(key => {
+            if (lower.includes(key)) {
+                keywords[key].forEach(icon => {
+                    if (!suggestions.includes(icon)) suggestions.push(icon);
+                });
+            }
+        });
+
+        // Default suggestions if nothing matches
+        if (suggestions.length === 0) {
+            return ["BrainCircuit", "Users", "Cloud", "Code", "Database", "TrendingUp"];
+        }
+
+        return suggestions.slice(0, 8); // Return top 8 matches
+    };
+
+    const suggestions = getSuggestions(titleContext);
+    const displayIcons = showAll ? Object.keys(ICON_MAP) : suggestions;
+
+    return (
+        <div className="mt-2">
+            <div className="text-xs text-gray-400 mb-2 flex justify-between items-center">
+                <span>{showAll ? "All Icons" : "Suggested Icons (based on title)"}</span>
+                <button 
+                    onClick={() => setShowAll(!showAll)} 
+                    className="text-blue-500 hover:text-blue-700 text-[10px] font-bold uppercase"
+                >
+                    {showAll ? "Show Suggestions" : "Show All"}
+                </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                {displayIcons.map(iconName => (
+                    <button
+                        key={iconName}
+                        onClick={() => onSelect(iconName)}
+                        className={`p-2 rounded border flex items-center justify-center transition-all ${
+                            currentIcon === iconName 
+                            ? 'bg-blue-100 border-blue-500 text-blue-700 ring-1 ring-blue-500' 
+                            : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600'
+                        }`}
+                        title={iconName}
+                    >
+                        {ICON_MAP[iconName]}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 // --- Generic Array Editor (Strings) ---
 const StringArrayEditor = ({ items, onChange }: { items: string[], onChange: (items: string[]) => void }) => {
@@ -192,6 +269,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, content, 
                         <Label>Category Name</Label>
                         <Input value={cat.name} onChange={(v) => updateSkillCat(idx, 'name', v)} />
 
+                        {/* Icon Picker Component */}
+                        <Label>Category Icon</Label>
+                        <IconPicker 
+                            currentIcon={cat.icon || 'Database'} 
+                            titleContext={cat.name}
+                            onSelect={(icon) => updateSkillCat(idx, 'icon', icon)} 
+                        />
+
                         <Label>Skills List</Label>
                         <StringArrayEditor 
                             items={cat.skills} 
@@ -200,7 +285,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, content, 
                     </div>
                 ))}
                 <button 
-                    onClick={() => setLocalContent({...localContent, skills: [...localContent.skills, { name: 'New Category', skills: ['Skill 1'] }]})}
+                    onClick={() => setLocalContent({...localContent, skills: [...localContent.skills, { name: 'New Category', icon: 'Database', skills: ['Skill 1'] }]})}
                     className="w-full py-2 border-2 border-dashed border-gray-300 rounded text-gray-500 hover:border-blue-500 hover:text-blue-500 font-bold"
                 >
                     + Add Category
