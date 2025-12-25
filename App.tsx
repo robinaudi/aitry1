@@ -10,12 +10,12 @@ import { ImpactMetrics, SkillsCloud, CertificationGrid } from './components/Diag
 import { Dashboard } from './components/Dashboard';
 import { initialContent } from './content';
 import { Theme, Language, ExperienceItem, LocalizedContent } from './types';
-import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2, Lock } from 'lucide-react';
+import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2, Lock, Cloud, Database } from 'lucide-react';
 
 // Firebase Imports
 import { auth, googleProvider, db } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 
 // --- Types & Theme Config ---
 
@@ -99,6 +99,9 @@ const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   
+  // Data Source State
+  const [dataSource, setDataSource] = useState<'cloud' | 'local'>('local');
+  
   // Content State
   const [contentMap, setContentMap] = useState<LocalizedContent>(initialContent);
   
@@ -113,45 +116,41 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
-  // 2. Fetch Data from Firestore
+  // 2. Real-time Data Sync (onSnapshot)
   useEffect(() => {
-    const fetchContent = async () => {
-        try {
-            const docRef = doc(db, "portfolio", "main_content");
-            
-            // Try to fetch content from Cloud
-            const docSnap = await getDoc(docRef);
-            
-            if (docSnap.exists()) {
-                const data = docSnap.data() as LocalizedContent;
-                // Simple integrity check
-                if (data && data.en && data.zh) {
-                    setContentMap(data);
-                } else {
-                    console.warn("Cloud content incomplete, using local default.");
-                    setContentMap(initialContent);
-                }
-            } else {
-                console.log("No cloud content found, using local default.");
-                setContentMap(initialContent);
-            }
+    setLoading(true);
+    const docRef = doc(db, "portfolio", "main_content");
 
-        } catch (error: any) {
-            // Permission Denied is expected if public access is not configured in Firestore Rules.
-            // In this case, we silently failover to local content without annoying the user.
-            if (error.code === 'permission-denied') {
-                console.log("Using local content (Cloud access restricted).");
-            } else {
-                console.warn("Error fetching content, using fallback:", error);
-            }
+    // Establish a real-time connection
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const cloudData = docSnap.data();
+            
+            // Smart Merge: Use local initialContent as base, overwrite with cloud data.
+            // This prevents crashes if cloud data is missing new fields.
+            const mergedContent: LocalizedContent = {
+                en: { ...initialContent.en, ...(cloudData.en || {}) },
+                zh: { ...initialContent.zh, ...(cloudData.zh || {}) }
+            };
+
+            setContentMap(mergedContent);
+            setDataSource('cloud');
+            console.log("Synced with Cloud Firestore");
+        } else {
+            console.log("No cloud document found. Using local defaults.");
+            setDataSource('local');
             setContentMap(initialContent);
-        } finally {
-            setLoading(false);
         }
-    };
+        setLoading(false);
+    }, (error) => {
+        console.warn("Firestore sync error (using local fallback):", error);
+        setDataSource('local');
+        setContentMap(initialContent);
+        setLoading(false);
+    });
 
-    fetchContent();
-  }, []);
+    return () => unsubscribe();
+  }, [user]); // Re-run whenever user login state changes to retry connection
 
   // 3. Handle Update (Save to Firestore)
   const handleUpdateContent = async (newSectionContent: any) => {
@@ -170,7 +169,7 @@ const App: React.FC = () => {
             // This catches circular structure errors early and ensures only data is sent.
             const cleanData = JSON.parse(JSON.stringify(newContentMap));
             await setDoc(docRef, cleanData, { merge: true });
-            alert("Saved successfully to cloud!");
+            alert("Saved successfully to cloud! Changes are now permanent.");
         } catch (e: any) {
             console.error("Error saving document: ", e);
             if (e.message.includes("circular structure")) {
@@ -283,6 +282,20 @@ const App: React.FC = () => {
 
             {/* Controls */}
             <div className="flex items-center gap-3">
+                
+                {/* Data Source Indicator */}
+                <div 
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold border tracking-wider select-none ${
+                        dataSource === 'cloud' 
+                        ? 'bg-green-50 text-green-700 border-green-200' 
+                        : 'bg-stone-100 text-stone-500 border-stone-200'
+                    }`}
+                    title={dataSource === 'cloud' ? 'Synced with Cloud Database' : 'Using Local Data (Not Synced)'}
+                >
+                    {dataSource === 'cloud' ? <Cloud size={10} className="fill-green-500 stroke-green-600" /> : <Database size={10} />}
+                    {dataSource === 'cloud' ? 'CLOUD' : 'LOCAL'}
+                </div>
+
                 {/* Language Switcher */}
                 <button onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} className={`flex items-center gap-1 hover:${accentColor}`} title="Switch Language">
                     <Globe size={16} /> <span className="uppercase">{lang === 'en' ? '中' : 'EN'}</span>
@@ -331,9 +344,22 @@ const App: React.FC = () => {
                     <div className="h-px bg-stone-200 my-2"></div>
                     {/* Mobile Controls */}
                     <div className="flex items-center justify-between px-4">
-                        <button onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} className={`flex items-center gap-2 ${textColor}`}>
-                            <Globe size={18} /> {lang === 'en' ? '中文' : 'English'}
-                        </button>
+                        <div className="flex items-center gap-3">
+                             {/* Mobile Source Indicator */}
+                             <div 
+                                className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold border tracking-wider ${
+                                    dataSource === 'cloud' 
+                                    ? 'bg-green-50 text-green-700 border-green-200' 
+                                    : 'bg-stone-100 text-stone-500 border-stone-200'
+                                }`}
+                            >
+                                {dataSource === 'cloud' ? 'CLOUD' : 'LOCAL'}
+                            </div>
+                            <button onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} className={`flex items-center gap-2 ${textColor}`}>
+                                <Globe size={18} /> {lang === 'en' ? '中文' : 'English'}
+                            </button>
+                        </div>
+                        
                         <div className="flex gap-2">
                             {(['light', 'dark', 'professional', 'hipster'] as Theme[]).map(t => (
                                 <button key={t} onClick={() => setTheme(t)} className={`w-6 h-6 rounded-full border ${theme === t ? 'border-nobel-gold ring-1 ring-nobel-gold' : 'border-gray-300'}`} style={{ backgroundColor: t === 'dark' ? '#1a1a1a' : (t === 'professional' ? '#f3f2ef' : '#F9F8F4') }}></button>
