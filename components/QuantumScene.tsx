@@ -1,4 +1,3 @@
-
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -36,10 +35,8 @@ const ParticleField = () => {
     }
   });
 
-  const group = useMemo(() => new THREE.Group(), []);
-
   return (
-    <primitive object={group} rotation={[0, 0, Math.PI / 4]}>
+    <group rotation={[0, 0, Math.PI / 4]}>
       <Points ref={ref} positions={sphere} stride={3} frustumCulled={false}>
         <PointMaterial
           transparent
@@ -49,7 +46,7 @@ const ParticleField = () => {
           depthWrite={false}
         />
       </Points>
-    </primitive>
+    </group>
   );
 };
 

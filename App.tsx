@@ -10,7 +10,7 @@ import { ImpactMetrics, SkillsCloud, CertificationGrid } from './components/Diag
 import { Dashboard } from './components/Dashboard';
 import { initialContent } from './content';
 import { Theme, Language, ExperienceItem, LocalizedContent } from './types';
-import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2, Lock, Cloud, Database, AlertTriangle } from 'lucide-react';
+import { Menu, X, Linkedin, Coffee, Globe, Palette, Settings, ExternalLink, Loader2, Target, CheckCircle2, Lock, Cloud, Database, AlertTriangle } from 'lucide-react';
 
 // Firebase Imports
 import { auth, googleProvider, db } from './firebase';
@@ -98,8 +98,8 @@ const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   
-  // Data Logic State
-  const [loading, setLoading] = useState(true);
+  // --- ARCHITECTURE REWRITE: NON-BLOCKING ASYNC LOAD ---
+  // We initialize with 'local' immediately. No blocking loading state.
   const [dataSource, setDataSource] = useState<'cloud' | 'local'>('local');
   const [contentMap, setContentMap] = useState<LocalizedContent>(initialContent);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -111,61 +111,52 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      // We don't toggle loading here because we wait for Firestore
     });
     return () => unsubscribe();
   }, []);
 
-  // 2. Data Fetching (Cloud First Strategy)
+  // 2. Data Fetching (ASYNC BACKGROUND SYNC)
   useEffect(() => {
-    setLoading(true);
     const docRef = doc(db, "portfolio", "main_content");
 
-    console.log("Attempting to connect to Cloud Firestore...");
+    console.log("🚀 App started. Showing Local Content immediately while connecting to Cloud...");
 
     const unsubscribe = onSnapshot(docRef, 
       (docSnap) => {
         if (docSnap.exists()) {
-            // SUCCESS: Cloud data found. Use it absolutely.
+            // SUCCESS: Cloud data found. Overwrite local state.
             const cloudData = docSnap.data() as LocalizedContent;
-            console.log("✅ Cloud data loaded successfully.");
             
-            // Validate minimal structure
+            // Basic validation to prevent crashing
             if (cloudData.en && cloudData.zh) {
+                console.log("✅ Cloud data received. Updating UI...");
                 setContentMap(cloudData);
                 setDataSource('cloud');
                 setErrorMsg(null);
-            } else {
-                console.warn("⚠️ Cloud data exists but structure is invalid. Using local.");
-                setDataSource('local');
             }
         } else {
-            // EMPTY DB: This is fine, we use local default, but we tell the user.
-            console.log("ℹ️ Database document does not exist yet. Using local defaults.");
-            setDataSource('local');
-            // We do NOT auto-write here to avoid accidental overwrites. 
-            // Writing is handled manually in Dashboard or on first Save.
+            // EMPTY DB: Just stay on local. No action needed.
+            console.log("ℹ️ Cloud document not found. Staying on Local Data.");
         }
-        setLoading(false);
       }, 
       (err) => {
-        console.error("❌ Firestore Error:", err);
-        setDataSource('local');
+        // ERROR: Just log it and stay on local. Don't disturb user.
+        console.warn("⚠️ Firestore Sync Warning:", err.message);
         
-        // Critical: Identify Permission Errors
+        // Only show a small indicator for the owner/admin, or if it's a specific permission error
         if (err.code === 'permission-denied') {
-            setErrorMsg("Permission Denied: Unable to read Cloud Data. Please check Firestore Rules.");
-        } else {
-            setErrorMsg(`Connection Error: ${err.message}`);
+             // We can optionally show a small banner, but since we requested "Non-Strict",
+             // we will just stay on local mode without blocking.
+             console.log("Permission denied - Public read access might be disabled.");
         }
-        setLoading(false);
+        setDataSource('local'); 
       }
     );
 
     return () => unsubscribe();
-  }, []); // Run once on mount (snapshot listener handles updates)
+  }, []); 
 
-  // 3. Save Logic (Full Overwrite)
+  // 3. Save Logic
   const handleUpdateContent = async (newSectionContent: any) => {
     if (!user) {
         alert("Please login to save changes.");
@@ -177,35 +168,30 @@ const App: React.FC = () => {
         [lang]: newSectionContent
     };
 
-    // Optimistic Update
+    // Optimistic UI Update
     setContentMap(newContentMap);
 
     try {
         const docRef = doc(db, "portfolio", "main_content");
-        // Deep copy to remove any undefined/functions
         const cleanData = JSON.parse(JSON.stringify(newContentMap));
-        
-        // setDoc with NO merge option -> Replaces the entire document.
-        // This ensures deleted items are actually deleted in the DB.
         await setDoc(docRef, cleanData); 
-        
-        // Note: The onSnapshot listener will trigger again, 
-        // confirming the data source is 'cloud'.
+        console.log("💾 Saved to Cloud successfully.");
     } catch (e: any) {
         console.error("Save failed:", e);
         alert(`Save failed: ${e.message}`);
     }
   };
 
-  // 4. Force Reset / Initial Seed (Called from Dashboard)
+  // 4. Force Reset
   const handleForceReset = async () => {
     if (!user) return;
-    if (!window.confirm("WARNING: This will overwrite the Cloud Database with the hardcoded 'initialContent' from the code. Are you sure?")) return;
+    const confirm = window.confirm("This will overwrite Cloud Data with Local Defaults. Continue?");
+    if (!confirm) return;
 
     try {
         const docRef = doc(db, "portfolio", "main_content");
         await setDoc(docRef, initialContent);
-        alert("Database successfully reset to local defaults.");
+        alert("Reset successful. Cloud data is now synced with Local Defaults.");
     } catch (e: any) {
         alert("Reset failed: " + e.message);
     }
@@ -259,27 +245,9 @@ const App: React.FC = () => {
     ? (isDark ? 'bg-[#0f172a]/90' : (isProfessional ? 'bg-white shadow-sm' : 'bg-[#F9F8F4]/90')) 
     : 'bg-transparent';
 
-  // --- LOADING SCREEN ---
-  if (loading) {
-      return (
-          <div className={`h-screen w-full flex flex-col items-center justify-center gap-4 ${themeStyles[theme]}`}>
-              <Loader2 className="animate-spin text-nobel-gold" size={48} />
-              <div className="text-sm font-mono opacity-60">Connecting to Cloud Database...</div>
-          </div>
-      )
-  }
-
   return (
     <div className={`min-h-screen transition-colors duration-500 ${themeStyles[theme]} selection:bg-nobel-gold selection:text-white`}>
       
-      {/* ERROR BANNER (Permission Denied) */}
-      {errorMsg && (
-        <div className="bg-red-600 text-white text-xs font-bold text-center px-4 py-2 flex items-center justify-center gap-2">
-            <AlertTriangle size={16} />
-            {errorMsg}
-        </div>
-      )}
-
       {/* Admin Dashboard */}
       <Dashboard 
         isOpen={isEditorOpen} 
@@ -288,12 +256,11 @@ const App: React.FC = () => {
         onUpdate={handleUpdateContent}
         onLogout={handleLogout}
         user={user}
-        // New prop for forcing reset
         onForceReset={handleForceReset}
       />
 
       {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-40 backdrop-blur-md transition-all duration-300 ${navBg} ${errorMsg ? 'top-8' : 'top-0'}`}>
+      <nav className={`fixed left-0 right-0 z-40 backdrop-blur-md transition-all duration-300 top-0 ${navBg}`}>
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-serif font-bold text-xl shadow-sm ${isDark ? 'bg-white/10 text-nobel-gold' : (isProfessional ? 'bg-[#0a66c2] text-white' : 'bg-stone-900 text-nobel-gold')}`}>RH</div>
@@ -322,7 +289,7 @@ const App: React.FC = () => {
                         ? 'bg-green-50 text-green-700 border-green-200' 
                         : 'bg-stone-100 text-stone-500 border-stone-200'
                     }`}
-                    title={dataSource === 'cloud' ? 'Data loaded from Firestore' : 'Data loaded from local file'}
+                    title={dataSource === 'cloud' ? 'Synced with Cloud Database' : 'Using Local Data (Not Synced)'}
                 >
                     {dataSource === 'cloud' ? <Cloud size={10} className="fill-green-500 stroke-green-600" /> : <Database size={10} />}
                     {dataSource === 'cloud' ? 'CLOUD' : 'LOCAL'}
