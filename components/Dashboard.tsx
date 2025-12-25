@@ -5,7 +5,7 @@
 */
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, LogOut, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Check } from 'lucide-react';
+import { X, Save, LogOut, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Check, RefreshCcw } from 'lucide-react';
 import { ContentData, ExperienceItem, MetricItem, SkillCategory, EducationItem, TeachingItem } from '../types';
 import { ICON_MAP } from './Diagrams';
 
@@ -16,6 +16,7 @@ interface DashboardProps {
     onUpdate: (newContent: ContentData) => void;
     onLogout: () => void;
     user: any;
+    onForceReset?: () => void; // Added prompt
 }
 
 // --- Helper Components ---
@@ -144,7 +145,7 @@ const StringArrayEditor = ({ items, onChange }: { items: string[], onChange: (it
     );
 };
 
-export const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, content, onUpdate, onLogout, user }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, content, onUpdate, onLogout, user, onForceReset }) => {
     // Local state to handle edits before saving
     const [localContent, setLocalContent] = useState<ContentData>(content);
     const [activeTab, setActiveTab] = useState<keyof ContentData | 'ui'>('hero');
@@ -436,7 +437,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, content, 
                         ))}
                     </div>
 
-                    <div className="p-4 border-t border-slate-800">
+                    <div className="p-4 border-t border-slate-800 space-y-2">
+                        {onForceReset && (
+                             <button onClick={onForceReset} className="flex items-center gap-2 text-sm text-yellow-500 hover:text-yellow-400 w-full px-2 py-2">
+                                <RefreshCcw size={16} /> Reset Cloud Data
+                            </button>
+                        )}
                         <button onClick={onLogout} className="flex items-center gap-2 text-sm text-red-400 hover:text-red-300 w-full px-2 py-2">
                             <LogOut size={16} /> Logout
                         </button>

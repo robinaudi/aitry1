@@ -10,7 +10,7 @@ import { ImpactMetrics, SkillsCloud, CertificationGrid } from './components/Diag
 import { Dashboard } from './components/Dashboard';
 import { initialContent } from './content';
 import { Theme, Language, ExperienceItem, LocalizedContent } from './types';
-import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2, Lock, Cloud, Database, AlertCircle } from 'lucide-react';
+import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2, Lock, Cloud, Database, AlertTriangle } from 'lucide-react';
 
 // Firebase Imports
 import { auth, googleProvider, db } from './firebase';
@@ -91,131 +91,123 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ item, delay, theme }) =
 const App: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
   
-  // State for features
+  // Feature State
   const [lang, setLang] = useState<Language>('en');
   const [theme, setTheme] = useState<Theme>('professional'); 
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   
-  // Data Source State
+  // Data Logic State
+  const [loading, setLoading] = useState(true);
   const [dataSource, setDataSource] = useState<'cloud' | 'local'>('local');
-  const [syncStatus, setSyncStatus] = useState<string>('');
-
-  // Content State
   const [contentMap, setContentMap] = useState<LocalizedContent>(initialContent);
-  
-  // Derived current content
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Derived content
   const content = useMemo(() => contentMap[lang], [contentMap, lang]);
 
-  // 1. Initialize Auth Listener
+  // 1. Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      // We don't toggle loading here because we wait for Firestore
     });
     return () => unsubscribe();
   }, []);
 
-  // 2. Real-time Data Sync (onSnapshot)
+  // 2. Data Fetching (Cloud First Strategy)
   useEffect(() => {
     setLoading(true);
     const docRef = doc(db, "portfolio", "main_content");
 
-    // Establish a real-time connection
-    const unsubscribe = onSnapshot(docRef, async (docSnap) => {
+    console.log("Attempting to connect to Cloud Firestore...");
+
+    const unsubscribe = onSnapshot(docRef, 
+      (docSnap) => {
         if (docSnap.exists()) {
-            // --- CRITICAL FIX: TRUST THE CLOUD ---
-            // We do NOT merge with initialContent here. 
-            // If the Cloud data exists, it is the Single Source of Truth.
-            // This ensures deleted items stay deleted.
+            // SUCCESS: Cloud data found. Use it absolutely.
             const cloudData = docSnap.data() as LocalizedContent;
+            console.log("✅ Cloud data loaded successfully.");
             
-            // Basic integrity check to ensure it's not empty garbage
+            // Validate minimal structure
             if (cloudData.en && cloudData.zh) {
                 setContentMap(cloudData);
                 setDataSource('cloud');
-                console.log("Synced with Cloud Firestore (Priority: Cloud)");
+                setErrorMsg(null);
             } else {
-                console.warn("Cloud data corrupt, falling back to local");
+                console.warn("⚠️ Cloud data exists but structure is invalid. Using local.");
                 setDataSource('local');
             }
         } else {
-            console.log("No cloud document found.");
-            // --- AUTO SEEDING ---
-            // If DB is empty, we automatically upload the local `initialContent`
-            // This satisfies the request to "write the whole project data to firebase"
-            if (user) {
-                try {
-                    console.log("Seeding database with local content...");
-                    const cleanData = JSON.parse(JSON.stringify(initialContent));
-                    await setDoc(docRef, cleanData);
-                    console.log("Database seeded successfully.");
-                    // The onSnapshot will trigger again immediately after this,
-                    // entering the 'if (docSnap.exists())' block above.
-                } catch (e) {
-                    console.error("Auto-seed failed:", e);
-                }
-            } else {
-                // If not logged in and no data, use local
-                setDataSource('local');
-                setContentMap(initialContent);
-            }
+            // EMPTY DB: This is fine, we use local default, but we tell the user.
+            console.log("ℹ️ Database document does not exist yet. Using local defaults.");
+            setDataSource('local');
+            // We do NOT auto-write here to avoid accidental overwrites. 
+            // Writing is handled manually in Dashboard or on first Save.
         }
         setLoading(false);
-    }, (error) => {
-        console.warn("Firestore sync error:", error);
-        // Fallback to local if permission denied (e.g. not public read)
+      }, 
+      (err) => {
+        console.error("❌ Firestore Error:", err);
         setDataSource('local');
-        setContentMap(initialContent);
+        
+        // Critical: Identify Permission Errors
+        if (err.code === 'permission-denied') {
+            setErrorMsg("Permission Denied: Unable to read Cloud Data. Please check Firestore Rules.");
+        } else {
+            setErrorMsg(`Connection Error: ${err.message}`);
+        }
         setLoading(false);
-    });
+      }
+    );
 
     return () => unsubscribe();
-  }, [user]); // Re-run whenever user login state changes
+  }, []); // Run once on mount (snapshot listener handles updates)
 
-  // 3. Handle Update (Save to Firestore)
+  // 3. Save Logic (Full Overwrite)
   const handleUpdateContent = async (newSectionContent: any) => {
-    // Update local state immediately for UI responsiveness
+    if (!user) {
+        alert("Please login to save changes.");
+        return;
+    }
+
     const newContentMap = {
         ...contentMap,
         [lang]: newSectionContent
     };
+
+    // Optimistic Update
     setContentMap(newContentMap);
 
-    // Save to Firestore
-    if (user) {
-        setSyncStatus('Saving...');
-        try {
-            const docRef = doc(db, "portfolio", "main_content");
-            // Safety check: ensure object is clean JSON before sending to Firestore
-            const cleanData = JSON.parse(JSON.stringify(newContentMap));
-            
-            // We use 'setDoc' without merge for top-level to ensure 
-            // the new structure completely overrides the old one if needed,
-            // OR use { merge: true } if we trust the structure.
-            // Since we are updating the entire [lang] block in state,
-            // we should be careful. 
-            // For safety in this app structure, we save the WHOLE map.
-            
-            await setDoc(docRef, cleanData); // Replaces the document content completely with current state
-            
-            setSyncStatus('Saved!');
-            setTimeout(() => setSyncStatus(''), 2000);
-            
-            // Explicit alert not needed if UI feedback exists, but keeping for confirmation
-            // alert("Saved successfully to cloud!"); 
-        } catch (e: any) {
-            console.error("Error saving document: ", e);
-            setSyncStatus('Error');
-            if (e.message.includes("circular structure")) {
-                 alert("Error: Data contains circular references.");
-            } else {
-                 alert("Error saving: " + e.message);
-            }
-        }
-    } else {
-        alert("You must be logged in to save changes to the cloud.");
+    try {
+        const docRef = doc(db, "portfolio", "main_content");
+        // Deep copy to remove any undefined/functions
+        const cleanData = JSON.parse(JSON.stringify(newContentMap));
+        
+        // setDoc with NO merge option -> Replaces the entire document.
+        // This ensures deleted items are actually deleted in the DB.
+        await setDoc(docRef, cleanData); 
+        
+        // Note: The onSnapshot listener will trigger again, 
+        // confirming the data source is 'cloud'.
+    } catch (e: any) {
+        console.error("Save failed:", e);
+        alert(`Save failed: ${e.message}`);
+    }
+  };
+
+  // 4. Force Reset / Initial Seed (Called from Dashboard)
+  const handleForceReset = async () => {
+    if (!user) return;
+    if (!window.confirm("WARNING: This will overwrite the Cloud Database with the hardcoded 'initialContent' from the code. Are you sure?")) return;
+
+    try {
+        const docRef = doc(db, "portfolio", "main_content");
+        await setDoc(docRef, initialContent);
+        alert("Database successfully reset to local defaults.");
+    } catch (e: any) {
+        alert("Reset failed: " + e.message);
     }
   };
 
@@ -224,12 +216,7 @@ const App: React.FC = () => {
         await signInWithPopup(auth, googleProvider);
         setIsEditorOpen(true);
     } catch (error: any) {
-        console.error("Login failed", error);
-        if (error.code === 'auth/unauthorized-domain') {
-            alert(`Login failed: Domain not authorized.\n\nPlease go to Firebase Console > Authentication > Settings > Authorized Domains.\n\nAdd this domain: ${window.location.hostname}`);
-        } else {
-            alert("Login failed: " + error.message);
-        }
+        alert("Login failed: " + error.message);
     }
   };
 
@@ -238,14 +225,13 @@ const App: React.FC = () => {
       setIsEditorOpen(false);
   }
 
-  // Scroll effect
+  // --- Scroll & Theme Effects ---
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Update Body Class for Theme
   useEffect(() => {
     document.body.className = themeStyles[theme];
   }, [theme]);
@@ -262,23 +248,23 @@ const App: React.FC = () => {
     }
   };
 
-  // Helper for styles based on theme
+  // Style Helpers
   const isDark = theme === 'dark';
   const isProfessional = theme === 'professional';
-  
   const headingColor = isDark ? 'text-white' : (isProfessional ? 'text-[#191919]' : 'text-stone-900');
   const subHeadingColor = isDark ? 'text-gray-400' : 'text-stone-500';
   const textColor = isDark ? 'text-gray-300' : (isProfessional ? 'text-[#00000099]' : 'text-stone-600');
   const accentColor = isProfessional ? 'text-[#0a66c2]' : 'text-nobel-gold';
-  
   const navBg = scrolled 
     ? (isDark ? 'bg-[#0f172a]/90' : (isProfessional ? 'bg-white shadow-sm' : 'bg-[#F9F8F4]/90')) 
     : 'bg-transparent';
 
+  // --- LOADING SCREEN ---
   if (loading) {
       return (
-          <div className={`h-screen w-full flex items-center justify-center ${themeStyles[theme]}`}>
+          <div className={`h-screen w-full flex flex-col items-center justify-center gap-4 ${themeStyles[theme]}`}>
               <Loader2 className="animate-spin text-nobel-gold" size={48} />
+              <div className="text-sm font-mono opacity-60">Connecting to Cloud Database...</div>
           </div>
       )
   }
@@ -286,6 +272,14 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen transition-colors duration-500 ${themeStyles[theme]} selection:bg-nobel-gold selection:text-white`}>
       
+      {/* ERROR BANNER (Permission Denied) */}
+      {errorMsg && (
+        <div className="bg-red-600 text-white text-xs font-bold text-center px-4 py-2 flex items-center justify-center gap-2">
+            <AlertTriangle size={16} />
+            {errorMsg}
+        </div>
+      )}
+
       {/* Admin Dashboard */}
       <Dashboard 
         isOpen={isEditorOpen} 
@@ -294,10 +288,12 @@ const App: React.FC = () => {
         onUpdate={handleUpdateContent}
         onLogout={handleLogout}
         user={user}
+        // New prop for forcing reset
+        onForceReset={handleForceReset}
       />
 
       {/* Navigation */}
-      <nav className={`fixed top-0 left-0 right-0 z-40 backdrop-blur-md transition-all duration-300 ${navBg}`}>
+      <nav className={`fixed top-0 left-0 right-0 z-40 backdrop-blur-md transition-all duration-300 ${navBg} ${errorMsg ? 'top-8' : 'top-0'}`}>
         <div className="container mx-auto px-6 py-4 flex justify-between items-center">
           <div className="flex items-center gap-4 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-serif font-bold text-xl shadow-sm ${isDark ? 'bg-white/10 text-nobel-gold' : (isProfessional ? 'bg-[#0a66c2] text-white' : 'bg-stone-900 text-nobel-gold')}`}>RH</div>
@@ -326,16 +322,11 @@ const App: React.FC = () => {
                         ? 'bg-green-50 text-green-700 border-green-200' 
                         : 'bg-stone-100 text-stone-500 border-stone-200'
                     }`}
-                    title={dataSource === 'cloud' ? 'Synced with Cloud Database' : 'Using Local Data (Not Synced)'}
+                    title={dataSource === 'cloud' ? 'Data loaded from Firestore' : 'Data loaded from local file'}
                 >
                     {dataSource === 'cloud' ? <Cloud size={10} className="fill-green-500 stroke-green-600" /> : <Database size={10} />}
                     {dataSource === 'cloud' ? 'CLOUD' : 'LOCAL'}
                 </div>
-
-                 {/* Sync Status Text */}
-                 {syncStatus && (
-                    <span className="text-xs text-green-600 font-bold animate-pulse">{syncStatus}</span>
-                 )}
 
                 {/* Language Switcher */}
                 <button onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} className={`flex items-center gap-1 hover:${accentColor}`} title="Switch Language">
@@ -503,7 +494,6 @@ const App: React.FC = () => {
               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4 text-base">
                   {content.about.points.map((point, i) => (
                       <li key={i} className="flex items-start gap-3">
-                        {/* Changed from repetitive Briefcase to cleaner CheckCircle2 */}
                         <CheckCircle2 className={`${accentColor} mt-1 flex-shrink-0`} size={18} />
                         <span>{point}</span>
                       </li>
@@ -546,10 +536,6 @@ const App: React.FC = () => {
 
         {/* Certifications & Education */}
         <section className={`py-24 overflow-hidden relative ${isDark ? 'bg-stone-900' : (isProfessional ? 'bg-[#f3f2ef]' : 'bg-[#e7e5e4]')}`}>
-            {/* 
-              Fix: Do NOT conditionally unmount AbstractTechScene.
-              Instead, toggle opacity/pointer-events to keep WebGL context alive.
-            */}
              <div className={`absolute top-0 right-0 w-1/2 h-full transition-opacity duration-700 ${!isProfessional ? 'opacity-30' : 'opacity-0 pointer-events-none'}`}>
                  <AbstractTechScene />
             </div>
@@ -558,7 +544,6 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
                      {/* Education & Teaching Column */}
                      <div>
-                        {/* Removed the 'ACADEMIC' Badge */}
                         <h2 className={`font-serif text-4xl mb-6 ${isDark ? 'text-white' : 'text-[#191919]'}`}>{content.ui.headings.education}</h2>
                         
                         {/* Education Items */}
@@ -605,7 +590,6 @@ const App: React.FC = () => {
                      {/* Certifications Column */}
                      <div>
                         <div className="h-full flex flex-col justify-center">
-                            {/* Updated to pass theme */}
                             <CertificationGrid theme={theme} />
                         </div>
                      </div>
