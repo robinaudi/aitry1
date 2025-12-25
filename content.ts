@@ -24,7 +24,7 @@ export const initialContent: LocalizedContent = {
         education: "Education",
         educationSubtitle: "Continuous learning and professional validation.",
         teaching: "Teaching Experience",
-        contact: "Ready to Collaborate?", 
+        contact: "Ready to Collaborate?",
         contactSubtitle: "Available for consulting, speaking engagements, and senior leadership roles."
       },
       footer: {
@@ -57,26 +57,10 @@ export const initialContent: LocalizedContent = {
       { label: "IT Cost Savings", value: "40", suffix: "%", desc: "SRE Implementation & Cloud Optimization", progress: 80 }
     ],
     skills: [
-      { 
-        name: "AI Tools & Systems", 
-        icon: "BrainCircuit",
-        skills: ["RPA (PowerAutomate)", "Google AI Ecosystem", "LCDP (OutSystems)", "NotebookLM", "Notion AI"] 
-      },
-      { 
-        name: "Leadership", 
-        icon: "Users",
-        skills: ["Team Building (80+)", "Agile/Scrum", "Strategic Planning", "Digital Transformation", "Cross-functional Integration"] 
-      },
-      { 
-        name: "Cloud & Database", 
-        icon: "Cloud",
-        skills: ["Amazon Web Services (AWS)", "Google Cloud Platform (GCP)", "Oracle Cloud Infrastructure (OCI)", "ERP (Oracle NetSuite)", "CRM (salesforce)", "MS-SQL", "MySQL", "Oracle DB", "CRM/POS Integration"] 
-      },
-      { 
-        name: "Development", 
-        icon: "Code",
-        skills: ["C#.NET", "React.js", "Node.js", "React Native", "ASP.NET Core"] 
-      }
+      { name: "Cloud & Database", skills: ["Amazon Web Services (AWS)", "Google Cloud Platform (GCP)", "Oracle Cloud Infrastructure (OCI)", "ERP (Oracle NetSuite)", "CRM (salesforce)", "MS-SQL", "MySQL", "Oracle DB", "CRM/POS Integration"] },
+      { name: "AI Tools & Systems", skills: ["RPA (PowerAutomate)", "Google AI Ecosystem", "LCDP (OutSystems)", "NotebookLM", "Notion AI"] },
+      { name: "Development", skills: ["C#.NET", "React.js", "Node.js", "React Native", "ASP.NET Core"] },
+      { name: "Leadership", skills: ["Team Building (80+)", "Agile/Scrum", "Strategic Planning", "Digital Transformation", "Cross-functional Integration"] }
     ],
     experience: {
       title: "Experience",
@@ -124,25 +108,25 @@ export const initialContent: LocalizedContent = {
       ]
     },
     education: [
-        {
-            school: "Tamkang University",
-            degree: "M.B.A. (Master of Business Administration), Management Information Systems",
-            note: "Master Thesis Award of International Conference on Information Management (ICIM)"
-        },
-        {
-            school: "National Sun Yat-Sen University",
-            degree: "EMBA Master Credit Class, Institute of Human Resource Management",
-            note: "People Management and People Development"
-        }
+      {
+        school: "Tamkang University",
+        degree: "M.B.A. (Master of Business Administration), Management Information Systems",
+        note: "Master Thesis Award of International Conference on Information Management (ICIM)"
+      },
+      {
+        school: "National Sun Yat-Sen University",
+        degree: "EMBA Master Credit Class, Institute of Human Resource Management",
+        note: "People Management and People Development"
+      }
     ],
     teaching: [
-        {
-            role: "Lecturer",
-            school: "Tamkang University",
-            period: "Feb 2021 - Sep 2022",
-            location: "Taiwan",
-            subject: "Presentation Skills"
-        }
+      {
+        role: "Lecturer",
+        school: "Tamkang University",
+        period: "Feb 2021 - Sep 2022",
+        location: "Taiwan",
+        subject: "Presentation Skills"
+      }
     ],
     contact: {
       title: "Business Mindset | Digital Transformation | Tech Background",
@@ -200,26 +184,10 @@ export const initialContent: LocalizedContent = {
       { label: "IT 成本節省", value: "40", suffix: "%", desc: "SRE 導入與雲端優化", progress: 80 }
     ],
     skills: [
-      { 
-        name: "AI Tools & Systems", 
-        icon: "BrainCircuit",
-        skills: ["RPA (PowerAutomate)", "Google AI 生態圈", "LCDP (OutSystems)", "NotebookLM", "Notion AI"] 
-      },
-      { 
-        name: "領導力", 
-        icon: "Users",
-        skills: ["團隊建立 (80+人)", "敏捷開發/Scrum", "策略規劃", "數位轉型", "跨部門整合"] 
-      },
-      { 
-        name: "Cloud & Database", 
-        icon: "Cloud",
-        skills: ["Amazon Web Services (AWS)", "Google Cloud Platform (GCP)", "Oracle Cloud Infrastructure (OCI)", "ERP (Oracle NetSuite)", "CRM (salesforce)", "MS-SQL", "MySQL", "Oracle DB", "CRM/POS Integration"] 
-      },
-      { 
-        name: "軟體開發", 
-        icon: "Code",
-        skills: ["C#.NET", "React.js", "Node.js", "React Native", "ASP.NET Core"] 
-      }
+      { name: "Cloud & Database", skills: ["Amazon Web Services (AWS)", "Google Cloud Platform (GCP)", "Oracle Cloud Infrastructure (OCI)", "ERP (Oracle NetSuite)", "CRM (salesforce)", "MS-SQL", "MySQL", "Oracle DB", "CRM/POS Integration"] },
+      { name: "AI Tools & Systems", skills: ["RPA (PowerAutomate)", "Google AI 生態圈", "LCDP (OutSystems)", "NotebookLM", "Notion AI"] },
+      { name: "軟體開發", skills: ["C#.NET", "React.js", "Node.js", "React Native", "ASP.NET Core"] },
+      { name: "領導力", skills: ["團隊建立 (80+人)", "敏捷開發/Scrum", "策略規劃", "數位轉型", "跨部門整合"] }
     ],
     experience: {
       title: "經歷",
@@ -267,25 +235,25 @@ export const initialContent: LocalizedContent = {
       ]
     },
     education: [
-        {
-            school: "淡江大學",
-            degree: "資訊管理研究所 碩士 (MBA)",
-            note: "ICIM 國際資訊管理研討會 碩士論文獎"
-        },
-        {
-            school: "國立中山大學",
-            degree: "人力資源管理研究所 EMBA 學分班",
-            note: "人員管理與發展 (People Management and People Development)"
-        }
+      {
+        school: "淡江大學",
+        degree: "資訊管理研究所 碩士 (MBA)",
+        note: "ICIM 國際資訊管理研討會 碩士論文獎"
+      },
+      {
+        school: "國立中山大學",
+        degree: "人力資源管理研究所 EMBA 學分班",
+        note: "人員管理與發展 (People Management and People Development)"
+      }
     ],
     teaching: [
-        {
-            role: "講師 (Lecturer)",
-            school: "淡江大學 (Tamkang University)",
-            period: "2021年2月 - 2022年9月",
-            location: "台灣",
-            subject: "簡報技巧 (Presentation Skills)"
-        }
+      {
+        role: "講師 (Lecturer)",
+        school: "淡江大學 (Tamkang University)",
+        period: "2021年2月 - 2022年9月",
+        location: "台灣",
+        subject: "簡報技巧 (Presentation Skills)"
+      }
     ],
     contact: {
       title: "商業思維 | 數位轉型 | 技術背景",
