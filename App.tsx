@@ -10,7 +10,7 @@ import { ImpactMetrics, SkillsCloud, CertificationGrid } from './components/Diag
 import { Dashboard } from './components/Dashboard';
 import { initialContent } from './content';
 import { Theme, Language, ExperienceItem, LocalizedContent } from './types';
-import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2, Lock, Cloud, Database } from 'lucide-react';
+import { Menu, X, Linkedin, Coffee, Briefcase, Globe, Palette, Settings, User, ExternalLink, Loader2, Target, CheckCircle2, Lock, Cloud, Database, AlertCircle } from 'lucide-react';
 
 // Firebase Imports
 import { auth, googleProvider, db } from './firebase';
@@ -101,7 +101,8 @@ const App: React.FC = () => {
   
   // Data Source State
   const [dataSource, setDataSource] = useState<'cloud' | 'local'>('local');
-  
+  const [syncStatus, setSyncStatus] = useState<string>('');
+
   // Content State
   const [contentMap, setContentMap] = useState<LocalizedContent>(initialContent);
   
@@ -122,35 +123,56 @@ const App: React.FC = () => {
     const docRef = doc(db, "portfolio", "main_content");
 
     // Establish a real-time connection
-    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+    const unsubscribe = onSnapshot(docRef, async (docSnap) => {
         if (docSnap.exists()) {
-            const cloudData = docSnap.data();
+            // --- CRITICAL FIX: TRUST THE CLOUD ---
+            // We do NOT merge with initialContent here. 
+            // If the Cloud data exists, it is the Single Source of Truth.
+            // This ensures deleted items stay deleted.
+            const cloudData = docSnap.data() as LocalizedContent;
             
-            // Smart Merge: Use local initialContent as base, overwrite with cloud data.
-            // This prevents crashes if cloud data is missing new fields.
-            const mergedContent: LocalizedContent = {
-                en: { ...initialContent.en, ...(cloudData.en || {}) },
-                zh: { ...initialContent.zh, ...(cloudData.zh || {}) }
-            };
-
-            setContentMap(mergedContent);
-            setDataSource('cloud');
-            console.log("Synced with Cloud Firestore");
+            // Basic integrity check to ensure it's not empty garbage
+            if (cloudData.en && cloudData.zh) {
+                setContentMap(cloudData);
+                setDataSource('cloud');
+                console.log("Synced with Cloud Firestore (Priority: Cloud)");
+            } else {
+                console.warn("Cloud data corrupt, falling back to local");
+                setDataSource('local');
+            }
         } else {
-            console.log("No cloud document found. Using local defaults.");
-            setDataSource('local');
-            setContentMap(initialContent);
+            console.log("No cloud document found.");
+            // --- AUTO SEEDING ---
+            // If DB is empty, we automatically upload the local `initialContent`
+            // This satisfies the request to "write the whole project data to firebase"
+            if (user) {
+                try {
+                    console.log("Seeding database with local content...");
+                    const cleanData = JSON.parse(JSON.stringify(initialContent));
+                    await setDoc(docRef, cleanData);
+                    console.log("Database seeded successfully.");
+                    // The onSnapshot will trigger again immediately after this,
+                    // entering the 'if (docSnap.exists())' block above.
+                } catch (e) {
+                    console.error("Auto-seed failed:", e);
+                }
+            } else {
+                // If not logged in and no data, use local
+                setDataSource('local');
+                setContentMap(initialContent);
+            }
         }
         setLoading(false);
     }, (error) => {
-        console.warn("Firestore sync error (using local fallback):", error);
+        console.warn("Firestore sync error:", error);
+        // Fallback to local if permission denied (e.g. not public read)
         setDataSource('local');
         setContentMap(initialContent);
         setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [user]); // Re-run whenever user login state changes to retry connection
+  }, [user]); // Re-run whenever user login state changes
 
   // 3. Handle Update (Save to Firestore)
   const handleUpdateContent = async (newSectionContent: any) => {
@@ -163,17 +185,31 @@ const App: React.FC = () => {
 
     // Save to Firestore
     if (user) {
+        setSyncStatus('Saving...');
         try {
             const docRef = doc(db, "portfolio", "main_content");
             // Safety check: ensure object is clean JSON before sending to Firestore
-            // This catches circular structure errors early and ensures only data is sent.
             const cleanData = JSON.parse(JSON.stringify(newContentMap));
-            await setDoc(docRef, cleanData, { merge: true });
-            alert("Saved successfully to cloud! Changes are now permanent.");
+            
+            // We use 'setDoc' without merge for top-level to ensure 
+            // the new structure completely overrides the old one if needed,
+            // OR use { merge: true } if we trust the structure.
+            // Since we are updating the entire [lang] block in state,
+            // we should be careful. 
+            // For safety in this app structure, we save the WHOLE map.
+            
+            await setDoc(docRef, cleanData); // Replaces the document content completely with current state
+            
+            setSyncStatus('Saved!');
+            setTimeout(() => setSyncStatus(''), 2000);
+            
+            // Explicit alert not needed if UI feedback exists, but keeping for confirmation
+            // alert("Saved successfully to cloud!"); 
         } catch (e: any) {
             console.error("Error saving document: ", e);
+            setSyncStatus('Error');
             if (e.message.includes("circular structure")) {
-                 alert("Error: Data contains circular references and cannot be saved.");
+                 alert("Error: Data contains circular references.");
             } else {
                  alert("Error saving: " + e.message);
             }
@@ -295,6 +331,11 @@ const App: React.FC = () => {
                     {dataSource === 'cloud' ? <Cloud size={10} className="fill-green-500 stroke-green-600" /> : <Database size={10} />}
                     {dataSource === 'cloud' ? 'CLOUD' : 'LOCAL'}
                 </div>
+
+                 {/* Sync Status Text */}
+                 {syncStatus && (
+                    <span className="text-xs text-green-600 font-bold animate-pulse">{syncStatus}</span>
+                 )}
 
                 {/* Language Switcher */}
                 <button onClick={() => setLang(lang === 'en' ? 'zh' : 'en')} className={`flex items-center gap-1 hover:${accentColor}`} title="Switch Language">
