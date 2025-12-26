@@ -5,9 +5,11 @@
 */
 
 import React, { useState, useEffect } from 'react';
-import { X, Save, LogOut, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Check, RefreshCcw } from 'lucide-react';
+import { X, Save, LogOut, Plus, Trash2, ChevronDown, ChevronUp, GripVertical, Check, RefreshCcw, Database } from 'lucide-react';
 import { ContentData, ExperienceItem, MetricItem, SkillCategory, EducationItem, TeachingItem } from '../types';
 import { ICON_MAP } from './Diagrams';
+// Import config to show Project ID
+import app from '../firebase'; 
 
 interface DashboardProps {
     isOpen: boolean;
@@ -419,6 +421,15 @@ export const Dashboard: React.FC<DashboardProps> = ({ isOpen, onClose, content, 
                     <div className="p-6 border-b border-slate-800">
                         <h2 className="text-white font-bold tracking-wider">CMS DASHBOARD</h2>
                         <div className="text-xs text-slate-500 mt-1 truncate">{user?.email}</div>
+                        {/* Project ID Indicator */}
+                        <div className="mt-4 p-2 bg-black/30 rounded border border-slate-700">
+                            <div className="text-[10px] text-slate-400 uppercase font-bold flex items-center gap-1 mb-1">
+                                <Database size={10} /> Connected Database
+                            </div>
+                            <div className="text-xs text-green-400 font-mono break-all">
+                                {app.options.projectId}
+                            </div>
+                        </div>
                     </div>
                     
                     <div className="flex-1 overflow-y-auto py-4">
