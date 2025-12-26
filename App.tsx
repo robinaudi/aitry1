@@ -88,6 +88,38 @@ const ExperienceCard: React.FC<ExperienceCardProps> = ({ item, delay, theme }) =
   );
 };
 
+// Helper to remove circular references and non-JSON data
+const deepSanitize = (obj: any, seen = new WeakSet()): any => {
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+    
+    // Handle circular refs
+    if (seen.has(obj)) {
+        return undefined;
+    }
+    seen.add(obj);
+
+    if (Array.isArray(obj)) {
+        return obj.map(item => deepSanitize(item, seen));
+    }
+
+    // Only copy plain objects
+    const result: any = {};
+    for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+            // Filter out React internal props or known circular keys just in case
+            if (key.startsWith('_') || key === 'ref' || key === 'key') continue;
+            
+            const value = deepSanitize(obj[key], seen);
+            if (value !== undefined) {
+                result[key] = value;
+            }
+        }
+    }
+    return result;
+};
+
 const App: React.FC = () => {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -125,7 +157,9 @@ const App: React.FC = () => {
       (docSnap) => {
         if (docSnap.exists()) {
             // SUCCESS: Cloud data found. Overwrite local state.
-            const cloudData = docSnap.data() as LocalizedContent;
+            const rawData = docSnap.data();
+            // Sanitize incoming data just to be safe
+            const cloudData = deepSanitize(rawData) as LocalizedContent;
             
             // Basic validation to prevent crashing
             if (cloudData.en && cloudData.zh) {
@@ -173,7 +207,13 @@ const App: React.FC = () => {
 
     try {
         const docRef = doc(db, "portfolio", "main_content");
-        const cleanData = JSON.parse(JSON.stringify(newContentMap));
+        // Sanitize data before saving to remove any circular refs or DOM nodes
+        const cleanData = deepSanitize(newContentMap);
+        
+        // JSON stringify check to ensure validity before sending to Firestore
+        // This is where the error was happening, now it should be safe
+        JSON.stringify(cleanData); 
+
         await setDoc(docRef, cleanData); 
         console.log("💾 Saved to Cloud successfully.");
     } catch (e: any) {
