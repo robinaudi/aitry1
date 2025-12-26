@@ -48,15 +48,6 @@ npm run build
 firebase deploy
 ```
 
-> **注意**: `firebase.json` 已設定為指向 `dist` 目錄。若沒有先 Build，網站將會出現 MIME Type 錯誤。
-
 ## 🔒 Security Rules (Firestore)
-
-確保你的資料庫規則允許公開讀取，但僅限管理員寫入：
-
-```javascript
-match /portfolio/{docId} {
-  allow read: if true;
-  allow write: if request.auth != null;
-}
-```
+https://robin-hsu.vercel.app/ (顯示用）
+https://robin-portfolio-app.web.app/ （編輯用）
